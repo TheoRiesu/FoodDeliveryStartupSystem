@@ -126,6 +126,21 @@ export class FoodItem extends MenuItem {
 
 const DRINK_SIZE_MULTIPLIER = { S: 1.0, M: 1.2, L: 1.5 };
 
+export const DRINK_SIZES = Object.keys(DRINK_SIZE_MULTIPLIER);
+
+export function isDrinkSize(value) {
+  return Object.hasOwn(DRINK_SIZE_MULTIPLIER, String(value || "").toUpperCase());
+}
+
+/** Size-variant price shared by DrinkItem and order line snapshots. */
+export function drinkPriceForSize(basePrice, size) {
+  const normalized = String(size || "").toUpperCase();
+  if (!isDrinkSize(normalized)) {
+    throw new Error("Drink size must be one of: S, M, L.");
+  }
+  return Number((Number(basePrice) * DRINK_SIZE_MULTIPLIER[normalized]).toFixed(2));
+}
+
 export class DrinkItem extends MenuItem {
   #size;
 
@@ -140,14 +155,14 @@ export class DrinkItem extends MenuItem {
 
   set size(value) {
     const size = String(value || "M").toUpperCase();
-    if (!Object.hasOwn(DRINK_SIZE_MULTIPLIER, size)) {
+    if (!isDrinkSize(size)) {
       throw new Error("Drink size must be one of: S, M, L.");
     }
     this.#size = size;
   }
 
   getFinalPrice() {
-    return Number((this.price * DRINK_SIZE_MULTIPLIER[this.#size]).toFixed(2));
+    return drinkPriceForSize(this.price, this.#size);
   }
 
   describe() {

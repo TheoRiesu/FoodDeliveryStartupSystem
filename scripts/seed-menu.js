@@ -1,4 +1,4 @@
-import { initDatabase, getDatabase } from "../src/core/database.js";
+import { getDatabase, initDatabase } from "../src/core/database.js";
 import { MenuManager } from "../src/modules/menu.js";
 import { clog } from "../src/utils/clog.js";
 

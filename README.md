@@ -1,4 +1,4 @@
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-2.0.0-blue)
 
 # Food Delivery Startup System
 
