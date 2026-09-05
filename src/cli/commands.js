@@ -19,6 +19,7 @@ Commands:
   menu:set-availability --id <id> --available <true|false>
   order:create --customer <id> --item <menuId:qty> [--item <menuId:qty> ...]
   order:list [--customer <id>] [--status <status>]
+  order:summary [--customer <id>]
   order:show --id <id>
   order:cancel --id <id>
   payment:pay --order <id> --method <cash|card|ewallet> [--last4 <dddd>] [--wallet <id>] [--reference <t>]
@@ -201,6 +202,18 @@ export async function runCommand(app, command, options) {
     case "order:cancel": {
       const order = app.orders.cancelOrder(Number(options.id));
       console.log(`Order #${order.id} cancelled.`);
+      return;
+    }
+    case "order:summary": {
+      const customerId =
+        options.customer === null || options.customer === undefined
+          ? null
+          : Number(options.customer);
+      const summary = app.orders.getOrderSummary(customerId);
+      console.log(`Orders: ${summary.count} — total ${formatPrice(summary.total)}`);
+      for (const [status, count] of Object.entries(summary.byStatus)) {
+        console.log(`  ${status}: ${count}`);
+      }
       return;
     }
     case "payment:pay": {

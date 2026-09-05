@@ -238,6 +238,18 @@ export class OrderManager {
     return rows.map((row) => this.getOrder(row.id));
   }
 
+  getOrderSummary(customerId = null) {
+    const orders = this.listOrders(
+      customerId === null || customerId === undefined ? {} : { customerId },
+    );
+    const byStatus = {};
+    for (const order of orders) {
+      byStatus[order.status] = (byStatus[order.status] || 0) + 1;
+    }
+    const total = Number(orders.reduce((sum, order) => sum + order.total, 0).toFixed(2));
+    return { count: orders.length, total, byStatus };
+  }
+
   updateStatus(id, nextStatus) {
     const order = this.getOrder(id);
     if (!order) {
