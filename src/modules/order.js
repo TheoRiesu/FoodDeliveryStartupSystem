@@ -1,6 +1,6 @@
 import { BaseEntity } from "../core/baseEntity.js";
 import { requirePositiveInt } from "../utils/validator.js";
-import { MenuManager } from "./menu.js";
+import { DRINK_SIZES, drinkPriceForSize, MenuManager } from "./menu.js";
 
 export const ORDER_STATUSES = [
   "pending",
@@ -127,8 +127,12 @@ export class OrderManager {
 
   /**
    * Create one order with multiple distinct menu items.
+   * A line may carry an optional `size` (drinks only: S/M/L) to order a
+   * size variant; the variant price is computed server-side and the
+   * snapshot name records it (e.g. "Cola (L)"). Lines without `size`
+   * keep legacy behavior (stored size, plain name).
    * @param {number} customerId
-   * @param {Array<{menuItemId:number, quantity:number}>} lines
+   * @param {Array<{menuItemId:number, quantity:number, size?:string}>} lines
    */
   createOrder(customerId, lines) {
     const customer = this.#db.prepare("SELECT id FROM Customer WHERE id = ?").get(customerId);
@@ -144,12 +148,6 @@ export class OrderManager {
     const orderItems = lines.map((line) => {
       const menuItemId = requirePositiveInt(line.menuItemId, "menuItemId");
       const quantity = requirePositiveInt(line.quantity, "quantity");
-      if (seen.has(menuItemId)) {
-        throw new Error(
-          `Duplicate menu item #${menuItemId} in one order. Merge quantities instead.`,
-        );
-      }
-      seen.add(menuItemId);
       const item = menu.getMenuItem(menuItemId);
       if (!item) {
         throw new Error(`Menu item #${menuItemId} not found.`);
@@ -157,10 +155,38 @@ export class OrderManager {
       if (!item.isAvailable) {
         throw new Error(`Menu item "${item.name}" is currently unavailable.`);
       }
+      if (line.size === undefined || line.size === null) {
+        if (seen.has(menuItemId)) {
+          throw new Error(
+            `Duplicate menu item #${menuItemId} in one order. Merge quantities instead.`,
+          );
+        }
+        seen.add(menuItemId);
+        return new OrderItem({
+          menuItemId: item.id,
+          itemName: item.name,
+          unitPrice: item.getFinalPrice(),
+          quantity,
+        });
+      }
+      if (item.category !== "drink") {
+        throw new Error(`Size variants are only for drinks ("${item.name}" is food).`);
+      }
+      const size = String(line.size).toUpperCase();
+      if (!DRINK_SIZES.includes(size)) {
+        throw new Error(`Drink size must be one of: ${DRINK_SIZES.join(", ")}.`);
+      }
+      const variantKey = `${menuItemId}__${size}`;
+      if (seen.has(variantKey)) {
+        throw new Error(
+          `Duplicate menu item #${menuItemId} (${size}) in one order. Merge quantities instead.`,
+        );
+      }
+      seen.add(variantKey);
       return new OrderItem({
         menuItemId: item.id,
-        itemName: item.name,
-        unitPrice: item.getFinalPrice(),
+        itemName: `${item.name} (${size})`,
+        unitPrice: drinkPriceForSize(item.price, size),
         quantity,
       });
     });
@@ -236,6 +262,18 @@ export class OrderManager {
     sql += " ORDER BY id ASC";
     const rows = this.#db.prepare(sql).all(...params);
     return rows.map((row) => this.getOrder(row.id));
+  }
+
+  getOrderSummary(customerId = null) {
+    const orders = this.listOrders(
+      customerId === null || customerId === undefined ? {} : { customerId },
+    );
+    const byStatus = {};
+    for (const order of orders) {
+      byStatus[order.status] = (byStatus[order.status] || 0) + 1;
+    }
+    const total = Number(orders.reduce((sum, order) => sum + order.total, 0).toFixed(2));
+    return { count: orders.length, total, byStatus };
   }
 
   updateStatus(id, nextStatus) {
