@@ -22,7 +22,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "tui": "node --experimental-ffi src/index.js tui",
     "dev": "node --watch src/index.js",
+    "seed:menu": "node scripts/seed-menu.js",
     "lint": "prettier --check . && eslint .",
     "prettier-write": "prettier --write ."
   },
