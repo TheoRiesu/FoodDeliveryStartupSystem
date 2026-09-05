@@ -28,6 +28,7 @@ function showMainMenu() {
   console.log("6. Manage / track delivery");
   console.log("7. View completed transactions");
   console.log("8. Show command-CLI help");
+  console.log("9. Show order summary");
   console.log("0. Exit");
 }
 
@@ -179,6 +180,14 @@ export async function runInteractive(app) {
           }
         } else if (choice === "8") {
           console.log(`\n${HELP_TEXT}`);
+        } else if (choice === "9") {
+          const raw = await ask(rl, "Customer id (empty for all): ");
+          const customerId = raw ? Number(raw) : null;
+          const summary = app.orders.getOrderSummary(customerId);
+          console.log(`Orders: ${summary.count} — total ${formatPrice(summary.total)}.`);
+          for (const [status, count] of Object.entries(summary.byStatus)) {
+            console.log(`  ${status}: ${count}`);
+          }
         } else {
           console.log("Unknown option.");
           continue;
